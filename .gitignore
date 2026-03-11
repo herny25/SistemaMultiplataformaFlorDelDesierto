@@ -1,0 +1,47 @@
+# ─── Dependencias ────────────────────────────────────────────────────────────
+node_modules/
+
+# ─── Backend ─────────────────────────────────────────────────────────────────
+restsys-backend/dist/
+restsys-backend/.env
+restsys-backend/.env.local
+restsys-backend/.env.production
+
+# ─── Frontend ────────────────────────────────────────────────────────────────
+restsys-frontend/dist/
+restsys-frontend/.env
+restsys-frontend/.env.local
+
+# ─── Cellphone (tiene su propio .gitignore, pero por si acaso) ───────────────
+restsys-cellphone/.expo/
+restsys-cellphone/android/
+restsys-cellphone/ios/
+restsys-cellphone/dist/
+
+# ─── Artefactos de build Docker (archivos binarios grandes) ──────────────────
+*.tar
+deploy/restsys-backend.tar
+deploy/restsys-frontend.tar
+deploy/postgres.tar
+postgres.tar
+
+# ─── APK / AAB (builds de Android) ───────────────────────────────────────────
+*.apk
+*.aab
+application-*/
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Sistema operativo ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Editor ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo

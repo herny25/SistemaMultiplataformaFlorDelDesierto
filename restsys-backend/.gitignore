@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Build compilado
+dist/
+
+# Variables de entorno (sensibles)
+.env
+.env.local
+.env.production
+# .env.example sí se sube (plantilla sin valores reales)
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
