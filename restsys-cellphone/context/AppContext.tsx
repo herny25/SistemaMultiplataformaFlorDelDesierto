@@ -29,7 +29,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!garzon) return;
     let mounted = true;
-    conectarComoGarzon().then(socket => {
+    conectarComoGarzon(garzon).then(socket => {
       if (!mounted) return;
       socket.on(WS_EVENTS.CONNECT, () => mounted && setConectado(true));
       socket.on(WS_EVENTS.DISCONNECT, () => mounted && setConectado(false));

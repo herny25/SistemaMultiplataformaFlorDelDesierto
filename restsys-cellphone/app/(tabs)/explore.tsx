@@ -12,6 +12,7 @@ export default function LoginScreen() {
   const { setGarzon } = useApp();
   const router = useRouter();
   const [nombre, setNombre] = useState('');
+  const [contrasena, setContrasena] = useState('');
   const [ip, setIp] = useState('');
   const [mostrarConfig, setMostrarConfig] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -23,14 +24,23 @@ export default function LoginScreen() {
   useFocusEffect(useCallback(() => {
     setGuardando(false);
     setNombre('');
+    setContrasena('');
   }, []));
 
   const ingresar = async () => {
-    if (!nombre.trim()) return;
+    if (!nombre.trim() || !contrasena.trim()) return;
     setGuardando(true);
-    if (ip.trim()) await saveServerIp(ip.trim());
-    await setGarzon(nombre.trim());
-    router.replace('/(tabs)/');
+    try {
+      if (ip.trim()) await saveServerIp(ip.trim());
+      // Verify credentials via API
+      const { loginApi } = await import('@/services/api');
+      await loginApi(nombre.trim(), contrasena.trim());
+      await setGarzon(nombre.trim());
+      router.replace('/(tabs)/');
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.message ?? 'Usuario o contraseña incorrectos');
+    }
+    setGuardando(false);
   };
 
   return (
@@ -60,15 +70,27 @@ export default function LoginScreen() {
           value={nombre}
           onChangeText={setNombre}
           autoCapitalize="words"
+          returnKeyType="next"
+        />
+
+        {/* Input contraseña */}
+        <Text style={styles.label}>CONTRASEÑA</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Contraseña"
+          placeholderTextColor={COLORS.text3}
+          value={contrasena}
+          onChangeText={setContrasena}
+          secureTextEntry
           returnKeyType="done"
           onSubmitEditing={ingresar}
         />
 
         {/* Botón ingresar */}
         <TouchableOpacity
-          style={[styles.btnPrimary, !nombre.trim() && styles.btnDisabled]}
+          style={[styles.btnPrimary, (!nombre.trim() || !contrasena.trim()) && styles.btnDisabled]}
           onPress={ingresar}
-          disabled={!nombre.trim() || guardando}
+          disabled={!nombre.trim() || !contrasena.trim() || guardando}
           activeOpacity={0.85}
         >
           {guardando

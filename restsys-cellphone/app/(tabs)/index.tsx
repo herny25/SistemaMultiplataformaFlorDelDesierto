@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useApp } from '@/context/AppContext';
-import { productosApi } from '@/services/api';
+import { productosApi, empresasApi } from '@/services/api';
 import { enviarOrden } from '@/services/socket';
 import type { Producto, ItemCarrito, AgregadoCarrito, TipoMenu, SubcategoriaMenu } from '../../src/types';
 import { TIPOS_CON_SUBCAT, SUBCATS_POR_TIPO, MENUS_CON_AGREGADOS } from '../../src/types';
@@ -32,6 +32,7 @@ const TIPO_LABELS: Record<TipoMenu, string> = {
   CENA:                 'Cena',
   CENA_ESPECIAL:        'Cena Especial',
   BEBIDA:               'Bebida',
+  CHURRASCO:            'Churrasco',
   OTRO:                 'Otro',
 };
 
@@ -46,6 +47,7 @@ const TIPO_EMOJIS: Record<TipoMenu, string> = {
   CENA:                 '🌙',
   CENA_ESPECIAL:        '🌟',
   BEBIDA:               '🥤',
+  CHURRASCO:            '🥩',
   OTRO:                 '📌',
 };
 
@@ -53,7 +55,7 @@ const TIPO_EMOJIS: Record<TipoMenu, string> = {
 const TIPOS_ORDEN: TipoMenu[] = [
   'DESAYUNO', 'ALMUERZO', 'ALMUERZO_ESPECIAL',
   'COLACION', 'COLACION_ESPECIAL', 'COLACION_MEDIA_MANANA', 'COLACION_FRIA',
-  'CENA', 'CENA_ESPECIAL', 'BEBIDA', 'OTRO',
+  'CENA', 'CENA_ESPECIAL', 'BEBIDA', 'CHURRASCO', 'OTRO',
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,6 +78,10 @@ export default function NuevaOrdenScreen() {
   const [mesa, setMesa] = useState('');
   const [nombreCliente, setNombreCliente] = useState('');
   const [obs, setObs] = useState('');
+  const [esPensionado, setEsPensionado] = useState(false);
+  const [empresas, setEmpresas] = useState<Array<{ id: number; nombre: string }>>([]);
+  const [empresaSeleccionada, setEmpresaSeleccionada] = useState<{ id: number; nombre: string } | null>(null);
+  const [modalEmpresas, setModalEmpresas] = useState(false);
 
   // UI
   const [enviando, setEnviando] = useState(false);
@@ -115,9 +121,16 @@ export default function NuevaOrdenScreen() {
 
   useEffect(() => { if (garzon) cargarMenu(); }, [cargarMenu, garzon]);
 
-  // Recargar menú cada vez que el garzón vuelve a esta pantalla
+  useEffect(() => {
+    empresasApi.getAll().then(setEmpresas).catch(() => {});
+  }, []);
+
+  // Recargar menú y empresas cada vez que el garzón vuelve a esta pantalla
   useFocusEffect(useCallback(() => {
-    if (garzon) cargarMenu(true);
+    if (garzon) {
+      cargarMenu(true);
+      empresasApi.getAll().then(setEmpresas).catch(() => {});
+    }
   }, [garzon, cargarMenu]));
 
   const onRefresh = useCallback(() => {
@@ -214,6 +227,8 @@ export default function NuevaOrdenScreen() {
     setMesa('');
     setNombreCliente('');
     setObs('');
+    setEsPensionado(false);
+    setEmpresaSeleccionada(null);
     setModalCarrito(false);
     setModalAgregados(null);
   };
@@ -266,6 +281,8 @@ export default function NuevaOrdenScreen() {
           ...(i.agregados ?? []).map(a => ({ productoId: a.productoId, cantidad: i.cantidad })),
         ]),
         observaciones: obs.trim() || undefined,
+        tipoCliente: esPensionado ? 'PENSIONADO' : 'PARTICULAR',
+        empresaNombre: esPensionado ? empresaSeleccionada?.nombre : undefined,
         comandaLineas: carrito.map(i => ({
           cantidad: i.cantidad,
           nombre: i.nombre,
@@ -341,7 +358,27 @@ export default function NuevaOrdenScreen() {
           onChangeText={setNombreCliente}
           autoCapitalize="words"
         />
+        <TouchableOpacity
+          onPress={() => { setEsPensionado(p => !p); if (!esPensionado) setModalEmpresas(true); }}
+          style={[styles.pensionadoToggle, esPensionado && styles.pensionadoToggleActive]}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.pensionadoToggleText, esPensionado && styles.pensionadoToggleTextActive]}>
+            {esPensionado ? '🏢' : '🏢?'}
+          </Text>
+        </TouchableOpacity>
       </View>
+      {esPensionado && (
+        <TouchableOpacity
+          onPress={() => setModalEmpresas(true)}
+          style={styles.empresaRow}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.empresaLabel}>
+            {empresaSeleccionada ? empresaSeleccionada.nombre : 'Seleccionar empresa...'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* ── BARRA TIPO MENÚ ── */}
       <ScrollView
@@ -615,6 +652,45 @@ export default function NuevaOrdenScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ── MODAL EMPRESAS ── */}
+      <Modal
+        visible={modalEmpresas}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalEmpresas(false)}
+      >
+        <View style={styles.agrsOverlay}>
+          <View style={styles.agrsSheet}>
+            <View style={styles.agrsHeader}>
+              <Text style={styles.agrsTitle}>Seleccionar empresa</Text>
+              <TouchableOpacity onPress={() => setModalEmpresas(false)} style={styles.modalClose}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.agrsScroll}>
+              {empresas.map(emp => (
+                <TouchableOpacity
+                  key={emp.id}
+                  onPress={() => { setEmpresaSeleccionada(emp); setModalEmpresas(false); }}
+                  style={[styles.agrItem, empresaSeleccionada?.id === emp.id && styles.agrItemActive]}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.agrNombre, empresaSeleccionada?.id === emp.id && styles.agrNombreActive]}>
+                    {emp.nombre}
+                  </Text>
+                  {empresaSeleccionada?.id === emp.id && <Text style={styles.agrCheck}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+              {empresas.length === 0 && (
+                <View style={{ padding: 24, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, color: COLORS.text3 }}>Sin empresas registradas</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── MODAL AGREGADOS ── */}
       <Modal
         visible={modalAgregados !== null}
@@ -739,6 +815,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface2,
   },
   inpMesa: { width: 82 },
+  pensionadoToggle: {
+    height: 42, paddingHorizontal: 12, borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: RADIUS.sm, backgroundColor: COLORS.surface2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pensionadoToggleActive: { backgroundColor: COLORS.navy, borderColor: COLORS.navy },
+  pensionadoToggleText: { fontSize: 16, color: COLORS.text3 },
+  pensionadoToggleTextActive: { color: 'white' },
+  empresaRow: {
+    marginHorizontal: 10, marginBottom: 4, paddingVertical: 8, paddingHorizontal: 12,
+    backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+  },
+  empresaLabel: { fontSize: 13, fontWeight: '600', color: COLORS.navy },
 
   // Barra tipoMenu
   catsBar: {
